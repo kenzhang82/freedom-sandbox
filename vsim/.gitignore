@@ -1,0 +1,12 @@
+generated-srcs
+INCA_libs
+logs
+*.simvision
+*.build
+*.history
+*.log
+*.key
+*.elf
+*.bin
+*.dis
+*.hex

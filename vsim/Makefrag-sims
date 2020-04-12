@@ -1,0 +1,126 @@
+#--------------------------------------------------------------------
+# Simulator configurations
+#--------------------------------------------------------------------
+# check RISCV environment variable
+ifndef RISCV
+$(error Please set environment variable RISCV.)
+endif
+
+.DEFAULT_GOAL := help
+
+COMPILER      ?= irun
+SIMULATOR     ?= ncsim
+
+#---------------------------------------------------------------------
+# Simulation compilation
+#---------------------------------------------------------------------
+LIB ?= worklib
+TB  ?= $(TB)
+
+COMPILE_ARGS = -sv
+# Enable license queueing
+COMPILE_ARGS += -licqueue
+# Suppress informational messages
+COMPILE_ARGS += -q
+# Permissions
+COMPILE_ARGS += -access +rwc
+# Timescale
+COMPILE_ARGS += -timescale 1ns/1ps
+# Includes
+COMPILE_ARGS += -incdir $(base_dir)/tb
+
+# Randomize register init
+COMPILE_ARGS += -define RANDOMIZE_REG_INIT
+# Shut off the core monitor
+COMPILE_ARGS += -define PRINTF_COND=0
+
+.PHONY: elab
+elab: verilog
+	$(COMPILER) $(COMPILE_ARGS) $(SIM_SRCS) -top $(LIB).$(TB) -elaborate -l elab.log
+
+#---------------------------------------------------------------------
+# Software compilation
+#---------------------------------------------------------------------
+PROGRAM          ?= hello
+TARGET           ?= freedom-e310-arty
+
+.PHONY: software
+software:
+	@mkdir -p logs
+	@echo "Building program $(PROGRAM) image for $(TARGET)..."
+	$(MAKE) -C $(SDK_DIR) software PROGRAM=$(PROGRAM) TARGET=$(TARGET) > logs/$(PROGRAM)-$(TARGET).buildlog
+	@cp $(SDK_DIR)/software/$(PROGRAM)/debug/$(PROGRAM).elf $(PROGRAM)-$(TARGET).elf
+	@$(OBJDUMP) -S $(PROGRAM)-$(TARGET).elf > $(PROGRAM)-$(TARGET).dis
+	@$(OBJCOPY) $(PROGRAM)-$(TARGET).elf -O binary $(PROGRAM)-$(TARGET).bin
+	@$(PYTHON) $(SOFTWARE_IMG_GEN) --offset 0x400000 --bit-width 8 $(PROGRAM)-$(TARGET).bin $(PROGRAM)-$(TARGET).hex
+
+#---------------------------------------------------------------------
+# Simulation run
+#---------------------------------------------------------------------
+export TRACE_DIR ?= /mnt/tmp_waveform_scratch_for$(shell pwd | tr '/' '_')
+
+RUN      ?= simrun
+SIM_ARGS += -licqueue
+SIM_ARGS += +SPIFLASH_IMAGE=$(PROGRAM)-$(TARGET).hex
+
+%.run: ## Run a specific program in batch mode
+	$(MAKE) $(basename $@).simrun PROGRAM=$(basename $@)
+
+%.runtrace: ## Run a specific program with waveform trace in database
+	$(MAKE) $(basename $@).simruntrace PROGRAM=$(basename $@)
+
+%.ppe: $(TRACE_DIR)/%.shm
+	@echo "Loading trace in "$(TRACE_DIR)/$(basename $@).shm
+	PROGRAM=$(basename $@) $(COMPILER) -ppe -ppdb $(TRACE_DIR)/$(basename $@).shm -r $(LIB).$(TB)
+
+%.simrun: elab software
+	@mkdir -p $(TRACE_DIR)
+	PROGRAM=$(basename $@) TB_NAME=$(TB) $(SIMULATOR) $(SIM_ARGS) $(LIB).$(TB) -input init.tcl -logfile logs/$(basename $@).log
+
+%.simruntrace: elab software
+	@mkdir -p $(TRACE_DIR)
+	TRACE=1 PROGRAM=$(basename $@) TB_NAME=$(TB) $(SIMULATOR) $(SIM_ARGS) $(LIB).$(TB) -input init.tcl -logfile logs/$(basename $@).log
+
+#---------------------------------------------------------------------
+# Clean
+#---------------------------------------------------------------------
+.PHONY: clean-lock
+clean-lock: ## Clean up annoying Cadence lock files
+	if [ `find . -name "*.lock" | wc -l` -gt 0 ]; then \
+		find . -name "*.lock" | xargs rm -v; \
+	fi
+
+.PHONY: clean-sw
+clean-sw:
+	@rm -f *.elf
+	@rm -f *.bin
+	@rm -f *.hex
+	@rm -f *.dis
+	@rm -f *.buildlog
+	$(MAKE) -C $(SDK_DIR) clean PROGRAM=$(PROGRAM) TARGET=$(TARGET)
+
+.PHONY: clean
+clean: clean-sw
+	@rm -f *.log
+	@rm -f *.diag
+	@rm -f *.key
+	@rm -f *.history
+	@rm -f *.build
+	@rm -rf INCA_libs || echo ""
+	@rm -rf .simvision
+
+.PHONY: superclean
+superclean: clean
+	$(MAKE) -C $(BOOTROM_DIR) clean
+	@rm -rf $(build_dir)
+
+.PHONY: nuclearclean
+nuclearclean: superclean
+	cd $(base_dir) && ./cleanall.sh
+
+#---------------------------------------------------------------------
+# Help
+#---------------------------------------------------------------------
+.PHONY: help
+help: ## Print this message
+	@grep -E -h '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

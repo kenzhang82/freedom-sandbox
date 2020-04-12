@@ -1,0 +1,21 @@
+#--------------------------------------------------------------------
+# Sources
+#--------------------------------------------------------------------
+
+# Verilog sources
+
+RTL_SRCS += $(VLOG_FILE)
+RTL_SRCS += $(SRAM_FILE)
+RTL_SRCS += $(BOOTROM_VLOG)
+RTL_SRCS += $(base_dir)/src/main/resources/vsrc/$(TOP).sv
+
+RTL_SRCS += $(ROCKETCHIP_DIR)/src/main/resources/vsrc/plusarg_reader.v
+RTL_SRCS += $(ROCKETCHIP_DIR)/src/main/resources/vsrc/AsyncResetReg.v
+RTL_SRCS += $(ROCKETCHIP_DIR)/src/main/resources/vsrc/EICG_wrapper.v
+RTL_SRCS += $(SIFIVEBLOCKS_DIR)/vsrc/SRLatch.v
+
+TB_SRCS =   $(base_dir)/tb/$(TB).sv
+TB_SRCS +=  $(base_dir)/tb/uart_rx.sv
+TB_SRCS +=  $(base_dir)/tb/s25fl256s.v
+
+SIM_SRCS = $(RTL_SRCS) $(TB_SRCS)

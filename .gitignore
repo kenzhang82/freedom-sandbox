@@ -1,0 +1,3 @@
+# sbt directory
+/target
+/project/target

@@ -1,0 +1,38 @@
+#--------------------------------------------------------------------
+# Verilog Generation
+#--------------------------------------------------------------------
+
+# Build firrtl.jar and put it where chisel3 can find it.
+FIRRTL_JAR ?= $(FIRRTL_DIR)/utils/bin/firrtl.jar
+FIRRTL ?= java $(JAVA_ARGS) -cp $(FIRRTL_JAR) firrtl.stage.FirrtlMain
+$(FIRRTL_JAR): $(shell find $(FIRRTL_DIR)/src/main/scala -iname "*.scala")
+	$(MAKE) -C $(FIRRTL_DIR) SBT="$(SBT)" root_dir=$(FIRRTL_DIR) build-scala
+	touch $(FIRRTL_JAR)
+	mkdir -p $(ROCKETCHIP_DIR)/lib
+	cp -p $(FIRRTL_JAR) $(ROCKETCHIP_DIR)/lib
+	mkdir -p $(ROCKETCHIP_DIR)/chisel3/lib
+	cp -p $(FIRRTL_JAR) $(ROCKETCHIP_DIR)/chisel3/lib
+
+# Build .fir
+$(FIRRTL_FILE): $(shell find $(base_dir)/src/main/scala -name '*.scala') $(FIRRTL_JAR)
+	mkdir -p $(dir $@)
+	cd $(base_dir) && \
+	$(SBT) "runMain $(GENERATOR) -td $(build_dir) -T $(PROJECT).$(MODEL) -C $(PROJECT).$(CONFIG)"
+
+# Build .v
+$(VLOG_FILE) $(MEM_CONF): $(FIRRTL_FILE)
+	$(FIRRTL) -i $< -o $(VLOG_FILE) -X verilog --repl-seq-mem -c:$(MODEL):-o:$(MEM_CONF)
+
+# Build SRAM
+$(SRAM_FILE): $(MEM_CONF) $(VLSI_MEM_GEN)
+	cd $(build_dir) && \
+	rm -f $@ && \
+	$(VLSI_MEM_GEN) $(MEM_CONF) >> $@.tmp && \
+	mv $@.tmp $@
+
+# Build ROM
+$(BOOTROM_VLOG): $(VLOG_FILE)
+	$(MAKE) -C $(BOOTROM_DIR) romvlog
+
+.PHONY: verilog
+verilog: $(VLOG_FILE) $(SRAM_FILE) $(BOOTROM_VLOG)

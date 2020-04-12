@@ -1,0 +1,78 @@
+#########################################################################################
+# makefile variables shared across multiple makefiles
+#########################################################################################
+
+#########################################################################################
+# variables to invoke the generator
+# descriptions:
+#   MODEL = the top level module of the project in Chisel
+#   PROJECT = the scala package to find the MODEL in
+#   CONFIG = the configuration class to give the parameters for the project
+#   GENERATOR = the Generator used to produce the verilog sources
+#   TB = wrapper over the TestHarness needed to simulate in a verilog simulator
+#   TOP = top level module of the project (normally the module instantiated by the harness)
+#
+#########################################################################################
+
+#########################################################################################
+# path to rocket-chip and sifive-blocks
+#########################################################################################
+ROCKETCHIP_DIR      = $(base_dir)/rocket-chip
+SIFIVEBLOCKS_DIR    = $(base_dir)/sifive-blocks
+FIRRTL_DIR          = $(ROCKETCHIP_DIR)/firrtl
+BOOTROM_DIR         = $(base_dir)/bootrom
+SDK_DIR             = $(base_dir)/freedom-e-sdk
+
+#########################################################################################
+# names of various files needed to compile and run things
+#########################################################################################
+GENERATOR           ?= freechips.rocketchip.system.Generator
+PROJECT             ?= sifive.freedom.e300artydevkit
+CONFIG              ?= E300ArtyDevKitConfig
+MODEL               ?= E300ArtyDevKitPlatform
+
+TOP                 ?= E300ArtyDevKitTop
+TB                  ?= E300ArtyDevKitTB
+
+FIRRTL_FILE         ?= $(build_dir)/$(PROJECT).$(CONFIG).fir
+ANNO_FILE           ?= $(build_dir)/$(PROJECT).$(CONFIG).anno.json
+
+MEM_CONF            ?= $(build_dir)/$(PROJECT).$(CONFIG).conf
+SRAM_FILE           ?= $(build_dir)/$(PROJECT).$(CONFIG).behav.srams.v
+VLOG_FILE           ?= $(build_dir)/$(PROJECT).$(CONFIG).v
+
+export DTS          ?= $(build_dir)/$(PROJECT).$(CONFIG).dts
+export DTB          ?= $(build_dir)/$(PROJECT).$(CONFIG).dtb
+export BOOTROM_CONF ?= $(build_dir)/$(PROJECT).$(CONFIG).rom.conf
+export BOOTROM_VLOG ?= $(build_dir)/$(PROJECT).$(CONFIG).rom.v
+
+#########################################################################################
+# java arguments used in sbt
+#########################################################################################
+JAVA                ?= java
+JAVA_HEAP_SIZE      ?= 2G
+JAVA_ARGS           ?= -Xmx$(JAVA_HEAP_SIZE) -Xss256M -XX:MaxPermSize=256M
+
+PYTHON              ?= python
+
+#########################################################################################
+# default sbt launch command
+#########################################################################################
+SCALA_VERSION        = 2.12.10
+SCALA_VERSION_MAJOR  = $(basename $(SCALA_VERSION))
+
+SBT ?= $(JAVA) $(JAVA_ARGS) -jar $(ROCKETCHIP_DIR)/sbt-launch.jar ++$(SCALA_VERSION)
+
+#########################################################################################
+# Scripts
+#########################################################################################
+VLSI_MEM_GEN        ?= $(ROCKETCHIP_DIR)/scripts/vlsi_mem_gen
+export VLSI_ROM_GEN ?= $(ROCKETCHIP_DIR)/scripts/vlsi_rom_gen
+SOFTWARE_IMG_GEN    ?= $(base_dir)/scripts/bin2hex.py
+
+#########################################################################################
+# Toolchain
+#########################################################################################
+export CC            = $(RISCV)/bin/riscv64-unknown-elf-gcc
+export OBJCOPY       = $(RISCV)/bin/riscv64-unknown-elf-objcopy
+export OBJDUMP       = $(RISCV)/bin/riscv64-unknown-elf-objdump
