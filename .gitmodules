@@ -1,0 +1,9 @@
+[submodule "rocket-chip"]
+	path = rocket-chip
+	url = https://github.com/kenzhang82/rocket-chip.git
+[submodule "sifive-blocks"]
+	path = sifive-blocks
+	url = https://github.com/kenzhang82/sifive-blocks.git
+[submodule "freedom-e-sdk"]
+	path = freedom-e-sdk
+	url = https://github.com/kenzhang82/freedom-e-sdk.git
