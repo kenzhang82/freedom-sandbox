@@ -1,17 +1,19 @@
 module E300ArtyDevKitTB;
 
-  //----------------------------------------------------------------
+  //--------------------------------------------------------------------
   // Internal constant and parameter definitions.
-  //----------------------------------------------------------------
-  parameter FAST_CLK_HALF_PERIOD = 10;
-  parameter FAST_CLK_PERIOD      = 2 * FAST_CLK_HALF_PERIOD;
-  parameter SLOW_CLK_HALF_PERIOD = 33;
-  parameter SLOW_CLK_PERIOD      = 2 * SLOW_CLK_HALF_PERIOD;
-  parameter UART_CLK_HALF_PERIOD = 50;
+  //--------------------------------------------------------------------
+  parameter FAST_CLK_HALF_PERIOD    = 7.7;  // 65MHz
+  parameter FAST_CLK_PERIOD         = 2 * FAST_CLK_HALF_PERIOD;
+  parameter SLOW_CLK_HALF_PERIOD    = 15.4; // 32.5MHz
+  parameter SLOW_CLK_PERIOD         = 2 * SLOW_CLK_HALF_PERIOD;
+  parameter UART_BAUD_RATE          = 115200; // bits per second
+  parameter integer UART_BIT_PERIOD = 1000000000 * 1 / UART_BAUD_RATE;
+  parameter integer UART_DIV        = UART_BIT_PERIOD / FAST_CLK_PERIOD;
 
-  //----------------------------------------------------------------
+  //--------------------------------------------------------------------
   // Register and Wire declarations.
-  //----------------------------------------------------------------
+  //--------------------------------------------------------------------
   reg         tb_cpu_ext_clk;
   reg         tb_cpu_clock;
   reg         tb_cpu_rst_n;
@@ -26,16 +28,16 @@ module E300ArtyDevKitTB;
   wire        tb_qspi_cs;
   wire [3:0]  tb_qspi_dq;
 
-  //----------------------------------------------------------------
+  //--------------------------------------------------------------------
   // External devices.
-  //----------------------------------------------------------------
+  //--------------------------------------------------------------------
   uart_rx #(
     .NAME("UART0"),
-    .DIV(UART_CLK_HALF_PERIOD)
+    .DIV(UART_DIV)
   ) debug_uart
   (
     .uart_clk           (tb_cpu_clock  ),
-    .rx_data            (tb_gpios[3]   )
+    .rx_data            (tb_gpios[17]  )
   );
 
   s25fl256s qspi_flash_mem
@@ -49,9 +51,9 @@ module E300ArtyDevKitTB;
     .HOLDNeg            (tb_qspi_dq[3] )
   );
 
-  //----------------------------------------------------------------
+  //--------------------------------------------------------------------
   // Device Under Test.
-  //----------------------------------------------------------------
+  //--------------------------------------------------------------------
   E300ArtyDevKitTop E300ArtyDevKitTop_inst
   (
     .cpu_ext_clk        (tb_cpu_ext_clk),
@@ -71,11 +73,11 @@ module E300ArtyDevKitTB;
     .qspi_dq            (tb_qspi_dq    )
   );
 
-  //----------------------------------------------------------------
+  //--------------------------------------------------------------------
   // clk_gen
   //
   // Always running clock generator process.
-  //----------------------------------------------------------------
+  //--------------------------------------------------------------------
   always begin: fast_clk_gen
     #FAST_CLK_HALF_PERIOD;
     tb_cpu_clock = ~tb_cpu_clock;
@@ -86,11 +88,11 @@ module E300ArtyDevKitTB;
     tb_cpu_ext_clk = ~tb_cpu_ext_clk;
   end
 
-  //----------------------------------------------------------------
+  //--------------------------------------------------------------------
   // reset_dut()
   //
   // Toggle reset to put the DUT into a well known state.
-  //----------------------------------------------------------------
+  //--------------------------------------------------------------------
   task reset_dut;
     begin
       $display("[TB]: Toggle reset");
@@ -103,12 +105,12 @@ module E300ArtyDevKitTB;
     end
   endtask // reset_dut
 
-  //----------------------------------------------------------------
+  //--------------------------------------------------------------------
   // init_sim()
   //
   // Initialize all counters and testbed functionality as well
   // as setting the DUT inputs to defined values.
-  //----------------------------------------------------------------
+  //--------------------------------------------------------------------
   task init_sim;
     begin
       tb_cpu_clock   = 0;
@@ -119,11 +121,11 @@ module E300ArtyDevKitTB;
     end
   endtask // init_sim
 
-  //----------------------------------------------------------------
+  //--------------------------------------------------------------------
   // main
   //
   // The main test functionality.
-  //----------------------------------------------------------------
+  //--------------------------------------------------------------------
   initial begin: main
     init_sim();
     reset_dut();
