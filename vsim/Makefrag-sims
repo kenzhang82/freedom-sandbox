@@ -43,13 +43,14 @@ elab: verilog
 #---------------------------------------------------------------------
 PROGRAM          ?= hello
 TARGET           ?= freedom-e310-arty
+SDK_CONFIG       ?= simulation
 
 .PHONY: software
 software:
 	@mkdir -p logs
 	@echo "Building program $(PROGRAM) image for $(TARGET)..."
 	$(MAKE) -C $(SDK_DIR) software PROGRAM=$(PROGRAM) TARGET=$(TARGET) > logs/$(PROGRAM)-$(TARGET).buildlog
-	@cp $(SDK_DIR)/software/$(PROGRAM)/debug/$(PROGRAM).elf $(PROGRAM)-$(TARGET).elf
+	@cp $(SDK_DIR)/software/$(PROGRAM)/$(SDK_CONFIG)/$(PROGRAM).elf $(PROGRAM)-$(TARGET).elf
 	@$(OBJDUMP) -S $(PROGRAM)-$(TARGET).elf > $(PROGRAM)-$(TARGET).dis
 	@$(OBJCOPY) $(PROGRAM)-$(TARGET).elf -O binary $(PROGRAM)-$(TARGET).bin
 	@$(PYTHON) $(SOFTWARE_IMG_GEN) --offset 0x400000 --bit-width 8 $(PROGRAM)-$(TARGET).bin $(PROGRAM)-$(TARGET).hex
