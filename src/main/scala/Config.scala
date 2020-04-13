@@ -23,7 +23,6 @@ class DefaultFreedomEConfig extends Config (
   new WithJtagDTM                ++
   new WithL1ICacheWays(2)        ++
   new WithL1ICacheSets(128)      ++
-  new WithDefaultBtb             ++
   new TinyConfig
 )
 
