@@ -1,10 +1,11 @@
 generated-srcs
-INCA_libs
+xcelium.d
 logs
 *.simvision
 *.build
 *.history
 *.log
+*.diag
 *.key
 *.elf
 *.bin

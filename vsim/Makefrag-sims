@@ -8,8 +8,8 @@ endif
 
 .DEFAULT_GOAL := help
 
-COMPILER      ?= irun
-SIMULATOR     ?= ncsim
+COMPILER      ?= xrun
+SIMULATOR     ?= xmsim
 
 #---------------------------------------------------------------------
 # Simulation compilation
@@ -43,13 +43,13 @@ elab: verilog
 #---------------------------------------------------------------------
 PROGRAM          ?= hello
 TARGET           ?= freedom-e310-arty
-SDK_CONFIG       ?= simulation
+SDK_CONFIG       ?= release
 
 .PHONY: software
 software:
 	@mkdir -p logs
 	@echo "Building program $(PROGRAM) image for $(TARGET)..."
-	$(MAKE) -C $(SDK_DIR) software PROGRAM=$(PROGRAM) TARGET=$(TARGET) > logs/$(PROGRAM)-$(TARGET).buildlog
+	$(MAKE) -C $(SDK_DIR) software PROGRAM=$(PROGRAM) CONFIGURATION=$(SDK_CONFIG) TARGET=$(TARGET) > logs/$(PROGRAM)-$(TARGET).buildlog
 	@cp $(SDK_DIR)/software/$(PROGRAM)/$(SDK_CONFIG)/$(PROGRAM).elf $(PROGRAM)-$(TARGET).elf
 	@$(OBJDUMP) -S $(PROGRAM)-$(TARGET).elf > $(PROGRAM)-$(TARGET).dis
 	@$(OBJCOPY) $(PROGRAM)-$(TARGET).elf -O binary $(PROGRAM)-$(TARGET).bin
@@ -107,8 +107,8 @@ clean: clean-sw
 	@rm -f *.key
 	@rm -f *.history
 	@rm -f *.build
-	@rm -rf INCA_libs || echo ""
 	@rm -rf .simvision
+	@-rm -rf xcelium.d
 
 .PHONY: superclean
 superclean: clean

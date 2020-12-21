@@ -129,6 +129,8 @@ module E300ArtyDevKitTB;
   initial begin: main
     init_sim();
     reset_dut();
+    #15ms;
+    $finish;
   end // main
 
 endmodule

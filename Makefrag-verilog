@@ -2,26 +2,37 @@
 # Verilog Generation
 #--------------------------------------------------------------------
 
-# Build firrtl.jar and put it where chisel3 can find it.
-FIRRTL_JAR ?= $(FIRRTL_DIR)/utils/bin/firrtl.jar
-FIRRTL ?= java $(JAVA_ARGS) -cp $(FIRRTL_JAR) firrtl.stage.FirrtlMain
-$(FIRRTL_JAR): $(shell find $(FIRRTL_DIR)/src/main/scala -iname "*.scala")
-	$(MAKE) -C $(FIRRTL_DIR) SBT="$(SBT)" root_dir=$(FIRRTL_DIR) build-scala
-	touch $(FIRRTL_JAR)
-	mkdir -p $(ROCKETCHIP_DIR)/lib
-	cp -p $(FIRRTL_JAR) $(ROCKETCHIP_DIR)/lib
-	mkdir -p $(ROCKETCHIP_DIR)/chisel3/lib
-	cp -p $(FIRRTL_JAR) $(ROCKETCHIP_DIR)/chisel3/lib
+FIRRTL_JAR := $(base_dir)/firrtl.jar
+$(FIRRTL_JAR): $(shell find $(base_dir)/src/main/scala -name '*.scala')
+	$(MAKE) -C $(FIRRTL_DIR) SBT="$(SBT)" root_dir=$(base_dir) build-scala
+	mkdir -p $(@D)
+	cp -p $(FIRRTL_DIR)/utils/bin/firrtl.jar $@
+	touch $@
+
+jar: $(FIRRTL_JAR)
 
 # Build .fir
-$(FIRRTL_FILE): $(shell find $(base_dir)/src/main/scala -name '*.scala') $(FIRRTL_JAR)
+$(FIRRTL_FILE): $(FIRRTL_JAR)
 	mkdir -p $(dir $@)
 	cd $(base_dir) && \
 	$(SBT) "runMain $(GENERATOR) -td $(build_dir) -T $(PROJECT).$(MODEL) -C $(PROJECT).$(CONFIG)"
 
+fir: $(FIRRTL_FILE)
+
 # Build .v
+FIRRTL_TRANSFORMS := \
+	firrtl.passes.InlineInstances \
+
+FIRRTL := $(JAVA) $(JAVA_ARGS) -cp $(FIRRTL_JAR) firrtl.stage.FirrtlMain
 $(VLOG_FILE) $(MEM_CONF): $(FIRRTL_FILE)
-	$(FIRRTL) -i $< -o $(VLOG_FILE) -X verilog --repl-seq-mem -c:$(MODEL):-o:$(MEM_CONF)
+	mkdir -p $(dir $@)
+	$(FIRRTL) -i $< \
+    -o $(VLOG_FILE) \
+    -X verilog \
+    --infer-rw $(MODEL) \
+    --repl-seq-mem -c:$(MODEL):-o:$(MEM_CONF) \
+    -td $(build_dir) \
+    -fct $(subst $(SPACE),$(COMMA),$(FIRRTL_TRANSFORMS)) \
 
 # Build SRAM
 $(SRAM_FILE): $(MEM_CONF) $(VLSI_MEM_GEN)

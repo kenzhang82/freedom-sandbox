@@ -22,7 +22,6 @@ import sifive.blocks.devices.i2c._
 //-------------------------------------------------------------------------
 
 class E300ArtyDevKitSystem(implicit p: Parameters) extends RocketSubsystem
-    with HasHierarchicalBusTopology
     with HasPeripheryDebug
     with HasPeripheryMockAON
     with HasPeripheryUART
@@ -31,6 +30,18 @@ class E300ArtyDevKitSystem(implicit p: Parameters) extends RocketSubsystem
     with HasPeripheryGPIO
     with HasPeripheryPWM
     with HasPeripheryI2C {
+
+  val maskROMConfigs = p(MaskROMLocated(location))
+  val maskRoms = maskROMConfigs.map { MaskROM.attach(_, this, CBUS) }
+
+  val boot = if (maskRoms.isEmpty) {
+    None
+  } else {
+    val boot = BundleBridgeSource(() => UInt(32.W))
+    tileResetVectorNexusNode := boot
+    Some(boot)
+  }
+
   override lazy val module = new E300ArtyDevKitSystemModule(this)
 }
 
@@ -44,7 +55,5 @@ class E300ArtyDevKitSystemModule[+L <: E300ArtyDevKitSystem](_outer: L)
     with HasPeripheryMockAONModuleImp
     with HasPeripheryPWMModuleImp
     with HasPeripheryI2CModuleImp {
-  // Reset vector is set to the location of the mask rom
-  val maskROMParams = p(PeripheryMaskROMKey)
-  global_reset_vector := maskROMParams(0).address.U
+  outer.boot.foreach { _.bundle := outer.maskROMConfigs.head.address.U }
 }

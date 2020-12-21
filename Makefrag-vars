@@ -8,6 +8,7 @@
 #   MODEL = the top level module of the project in Chisel
 #   PROJECT = the scala package to find the MODEL in
 #   CONFIG = the configuration class to give the parameters for the project
+#   CFG_PRJ = the scala package to find the CONFIG class
 #   GENERATOR = the Generator used to produce the verilog sources
 #   TB = wrapper over the TestHarness needed to simulate in a verilog simulator
 #   TOP = top level module of the project (normally the module instantiated by the harness)
@@ -28,23 +29,24 @@ SDK_DIR             = $(base_dir)/freedom-e-sdk
 #########################################################################################
 GENERATOR           ?= freechips.rocketchip.system.Generator
 PROJECT             ?= sifive.freedom.e300artydevkit
+CFG_PRJ             ?= sifive.freedom.e300artydevkit
 CONFIG              ?= E300ArtyDevKitConfig
 MODEL               ?= E300ArtyDevKitPlatform
 
 TOP                 ?= E300ArtyDevKitTop
 TB                  ?= E300ArtyDevKitTB
 
-FIRRTL_FILE         ?= $(build_dir)/$(PROJECT).$(CONFIG).fir
-ANNO_FILE           ?= $(build_dir)/$(PROJECT).$(CONFIG).anno.json
+FIRRTL_FILE         ?= $(build_dir)/$(CFG_PRJ).$(CONFIG).fir
+ANNO_FILE           ?= $(build_dir)/$(CFG_PRJ).$(CONFIG).anno.json
 
-MEM_CONF            ?= $(build_dir)/$(PROJECT).$(CONFIG).conf
-SRAM_FILE           ?= $(build_dir)/$(PROJECT).$(CONFIG).behav.srams.v
-VLOG_FILE           ?= $(build_dir)/$(PROJECT).$(CONFIG).v
+MEM_CONF            ?= $(build_dir)/$(CFG_PRJ).$(CONFIG).conf
+SRAM_FILE           ?= $(build_dir)/$(CFG_PRJ).$(CONFIG).behav.srams.v
+VLOG_FILE           ?= $(build_dir)/$(CFG_PRJ).$(CONFIG).v
 
-export DTS          ?= $(build_dir)/$(PROJECT).$(CONFIG).dts
-export DTB          ?= $(build_dir)/$(PROJECT).$(CONFIG).dtb
-export BOOTROM_CONF ?= $(build_dir)/$(PROJECT).$(CONFIG).rom.conf
-export BOOTROM_VLOG ?= $(build_dir)/$(PROJECT).$(CONFIG).rom.v
+export DTS          ?= $(build_dir)/$(CFG_PRJ).$(CONFIG).dts
+export DTB          ?= $(build_dir)/$(CFG_PRJ).$(CONFIG).dtb
+export BOOTROM_CONF ?= $(build_dir)/$(CFG_PRJ).$(CONFIG).rom.conf
+export BOOTROM_VLOG ?= $(build_dir)/$(CFG_PRJ).$(CONFIG).rom.v
 
 #########################################################################################
 # java arguments used in sbt
@@ -53,15 +55,12 @@ JAVA                ?= java
 JAVA_HEAP_SIZE      ?= 2G
 JAVA_ARGS           ?= -Xmx$(JAVA_HEAP_SIZE) -Xss256M -XX:MaxPermSize=256M
 
-PYTHON              ?= python
+PYTHON              ?= python3
 
 #########################################################################################
 # default sbt launch command
 #########################################################################################
-SCALA_VERSION        = 2.12.10
-SCALA_VERSION_MAJOR  = $(basename $(SCALA_VERSION))
-
-SBT ?= $(JAVA) $(JAVA_ARGS) -jar $(ROCKETCHIP_DIR)/sbt-launch.jar ++$(SCALA_VERSION)
+SBT ?= $(JAVA) $(JAVA_ARGS) -jar $(ROCKETCHIP_DIR)/sbt-launch.jar
 
 #########################################################################################
 # Scripts
@@ -73,6 +72,13 @@ SOFTWARE_IMG_GEN    ?= $(base_dir)/scripts/bin2hex.py
 #########################################################################################
 # Toolchain
 #########################################################################################
-export CC            = $(RISCV)/bin/riscv64-unknown-elf-gcc
-export OBJCOPY       = $(RISCV)/bin/riscv64-unknown-elf-objcopy
-export OBJDUMP       = $(RISCV)/bin/riscv64-unknown-elf-objdump
+export CC      := $(RISCV)/bin/riscv64-unknown-elf-gcc
+export OBJCOPY := $(RISCV)/bin/riscv64-unknown-elf-objcopy
+export OBJDUMP := $(RISCV)/bin/riscv64-unknown-elf-objdump
+
+#########################################################################################
+# Misc.
+#########################################################################################
+EMPTY :=
+SPACE := $(EMPTY) $(EMPTY)
+COMMA := ,

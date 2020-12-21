@@ -1,3 +1,11 @@
-# sbt directory
-/target
-/project/target
+# sbt directories
+target/
+project/target
+
+*.fir
+*.v
+*.anno.json
+*.swp
+*~
+/lib/
+firrtl.jar
