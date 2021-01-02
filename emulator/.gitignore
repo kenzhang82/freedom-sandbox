@@ -1,0 +1,12 @@
+verilated
+verilator
+emulator*
+logs
+*.log
+*.elf
+*.bin
+*.dis
+*.hex
+*.vcd
+*.trn
+*.dsn

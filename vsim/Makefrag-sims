@@ -41,9 +41,13 @@ elab: verilog
 #---------------------------------------------------------------------
 # Software compilation
 #---------------------------------------------------------------------
-PROGRAM          ?= hello
-TARGET           ?= freedom-e310-arty
-SDK_CONFIG       ?= release
+PROGRAM    ?= hello
+TARGET     ?= freedom-e310-arty
+SDK_CONFIG ?= release
+
+CC         ?= $(RISCV_GCC)
+OBJCOPY    ?= $(RISCV_OBJCOPY)
+OBJDUMP    ?= $(RISCV_OBJDUMP)
 
 .PHONY: software
 software:

@@ -2,8 +2,8 @@
 target/
 project/target
 
+generated-srcs
 *.fir
-*.v
 *.anno.json
 *.swp
 *~

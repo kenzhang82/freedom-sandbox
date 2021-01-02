@@ -1,0 +1,158 @@
+#--------------------------------------------------------------------
+# Verilator configurations
+#--------------------------------------------------------------------
+# check RISCV environment variable
+ifndef RISCV
+$(error Please set environment variable RISCV.)
+endif
+
+.DEFAULT_GOAL := help
+
+#---------------------------------------------------------------------
+# verilator installation
+#---------------------------------------------------------------------
+# Build and install our own Verilator, to work around versionining issues.
+VERILATOR_VERSION   ?= $(shell cat verilator.hash)
+VERILATOR_SRCDIR    ?= verilator/src/verilator-$(VERILATOR_VERSION)
+VERILATOR_TARGET    := $(abspath verilator/install/bin/verilator)
+INSTALLED_VERILATOR ?= $(VERILATOR_TARGET)
+
+$(VERILATOR_TARGET): $(VERILATOR_SRCDIR)/bin/verilator
+	$(MAKE) -C $(VERILATOR_SRCDIR) installbin installdata
+	touch $@
+
+$(VERILATOR_SRCDIR)/bin/verilator: $(VERILATOR_SRCDIR)/Makefile
+	$(MAKE) -C $(VERILATOR_SRCDIR) verilator_bin
+	touch $@
+
+$(VERILATOR_SRCDIR)/Makefile: $(VERILATOR_SRCDIR)/configure
+	mkdir -p $(dir $@)
+	cd $(dir $@) && ./configure --prefix=$(abspath verilator/install)
+
+$(VERILATOR_SRCDIR)/configure: verilator/verilator-$(VERILATOR_VERSION).tar.gz
+	rm -rf $(dir $@)
+	mkdir -p $(dir $@)
+	cat $^ | tar -xz --strip-components=1 -C $(dir $@)
+	touch $@
+
+verilator/verilator-$(VERILATOR_VERSION).tar.gz:
+	mkdir -p $(dir $@)
+	wget http://www.veripool.org/ftp/verilator-$(VERILATOR_VERSION).tgz -O $@
+
+verilator: $(INSTALLED_VERILATOR)
+
+#---------------------------------------------------------------------
+# Verilator circuit emulation
+#---------------------------------------------------------------------
+
+VERILATOR 		  := $(INSTALLED_VERILATOR) --cc --exe
+VERILATOR_THREADS ?= 4
+
+VERILATOR_FLAGS   += --top-module $(TOP)
+VERILATOR_FLAGS   += --x-initial 0
+# Shut off the core monitor
+VERILATOR_FLAGS   += +define+PRINTF_COND=0
+VERILATOR_FLAGS   += --output-split 20000
+VERILATOR_FLAGS   += --output-split-cfuncs 20000
+VERILATOR_FLAGS   += --threads $(VERILATOR_THREADS)
+# Suppress the warnings
+VERILATOR_FLAGS   += -Wno-fatal
+VERILATOR_FLAGS   +=  --x-assign unique
+VERILATOR_FLAGS   += -O3
+# --max-num-width is set to 1024^2 to avoid an error with compiling a Verilated
+# circuit with a width greater than the default of 65536, which can easily
+# happen with Chisel-generated Verilog code. See
+# https://github.com/chipsalliance/rocket-chip/pull/2377#issuecomment-605846516
+VERILATOR_FLAGS   += --max-num-width 1048576
+VERILATOR_FLAGS   += --trace
+
+CXXFLAGS += -O1
+CXXFLAGS += -std=c++11
+CXXFLAGS += -I$(RISCV)/include
+LDFLAGS  += -L$(RISCV)/lib -Wl,-rpath,$(RISCV)/lib
+LDFLAGS  += -L$(abspath $(sim_dir)) -lpthread
+
+EMULATOR := emulator-$(PROJECT)
+$(EMULATOR): verilog verilator
+	$(VERILATOR) $(VERILATOR_FLAGS) -Mdir $(vlted_dir) \
+	-o $(abspath $(sim_dir))/$@ $(RTL_SRCS) $(CSRCS) \
+	-CFLAGS "-I$(vlted_dir)" \
+	-LDFLAGS "$(LDFLAGS)"
+	$(MAKE) VM_PARALLEL_BUILDS=1 -C $(vlted_dir) -f V$(TOP).mk
+
+emulate: $(EMULATOR)
+
+#---------------------------------------------------------------------
+# Software compilation
+#---------------------------------------------------------------------
+PROGRAM          ?= hello
+TARGET           ?= freedom-e310-arty
+SDK_CONFIG       ?= release
+
+.PHONY: software
+software:
+	@mkdir -p logs
+	@echo "Building program $(PROGRAM) image for $(TARGET)..."
+	$(MAKE) -C $(SDK_DIR) software PROGRAM=$(PROGRAM) CONFIGURATION=$(SDK_CONFIG) TARGET=$(TARGET) > logs/$(PROGRAM)-$(TARGET).buildlog
+	@cp $(SDK_DIR)/software/$(PROGRAM)/$(SDK_CONFIG)/$(PROGRAM).elf $(PROGRAM)-$(TARGET).elf
+	@$(RISCV_OBJDUMP) -S $(PROGRAM)-$(TARGET).elf > $(PROGRAM)-$(TARGET).dis
+	@$(RISCV_OBJCOPY) $(PROGRAM)-$(TARGET).elf -O binary $(PROGRAM)-$(TARGET).bin
+	@$(PYTHON) $(SOFTWARE_IMG_GEN) --offset 0x400000 --bit-width 8 $(PROGRAM)-$(TARGET).bin $(PROGRAM)-$(TARGET).hex
+
+#---------------------------------------------------------------------
+# Simulation run
+#---------------------------------------------------------------------
+TRACE_DIR      ?= /mnt/tmp_waveform_scratch_for$(shell pwd | tr '/' '_')
+TIMEOUT_CYCLES ?= 10000000
+
+RUN      ?= vltrun
+SIM_ARGS += +SPIFLASH_IMAGE=$(PROGRAM)-$(TARGET).hex
+SIM_ARGS += +timeout=$(TIMEOUT_CYCLES)
+TRACES   += +vcd=$(TRACE_DIR)/$(PROGRAM).vcd
+
+%.run: ## Run a specific program in batch mode
+	$(MAKE) $(basename $@).vltrun PROGRAM=$(basename $@)
+
+%.runtrace: ## Run a specific program with waveform trace in database
+	$(MAKE) $(basename $@).vltruntrace PROGRAM=$(basename $@)
+
+%.vltrun: emulate software
+	@mkdir -p $(TRACE_DIR)
+	./$(EMULATOR) $(SIM_ARGS)
+
+%.vltruntrace: emulate software
+	./$(EMULATOR) $(SIM_ARGS) $(TRACES)
+
+#---------------------------------------------------------------------
+# Clean
+#---------------------------------------------------------------------
+
+.PHONY: clean-sw
+clean-sw:
+	@rm -f *.elf
+	@rm -f *.bin
+	@rm -f *.hex
+	@rm -f *.dis
+	@rm -f *.buildlog
+	$(MAKE) -C $(SDK_DIR) clean PROGRAM=$(PROGRAM) TARGET=$(TARGET)
+
+.PHONY: clean
+clean: clean-sw
+	@rm -f *.log
+	# TODO: only clean the verilated dir
+
+.PHONY: superclean
+superclean: clean
+	$(MAKE) -C $(BOOTROM_DIR) clean
+	@rm -rf $(build_dir)
+
+.PHONY: nuclearclean
+nuclearclean: superclean
+	cd $(base_dir) && ./cleanall.sh
+
+#---------------------------------------------------------------------
+# Help
+#---------------------------------------------------------------------
+.PHONY: help
+help: ## Print this message
+	@grep -E -h '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

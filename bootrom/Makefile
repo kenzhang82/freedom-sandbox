@@ -1,6 +1,12 @@
-CFLAGS := -march=rv32imac -mabi=ilp32 -O2 -std=gnu11 -Wall -I. -nostartfiles -fno-common -g
-LINKER := xip.lds
-LFLAGS := -static -nostdlib
+base_dir = $(abspath ..)
+include $(base_dir)/Makefrag-srcs
+
+CC      := $(RISCV_GCC)
+OBJCOPY := $(RISCV_OBJCOPY)
+OBJDUMP := $(RISCV_OBJDUMP)
+CFLAGS  := -march=rv32imac -mabi=ilp32 -O2 -std=gnu11 -Wall -I. -nostartfiles -fno-common -g
+LINKER  := xip.lds
+LFLAGS  := -static -nostdlib
 
 $(DTB): $(DTS)
 	dtc -I dts -O dtb -o $@ $<

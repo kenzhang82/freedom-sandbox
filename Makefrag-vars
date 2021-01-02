@@ -33,7 +33,7 @@ CFG_PRJ             ?= sifive.freedom.e300artydevkit
 CONFIG              ?= E300ArtyDevKitConfig
 MODEL               ?= E300ArtyDevKitPlatform
 
-TOP                 ?= E300ArtyDevKitTop
+TOP                 ?= E300ArtyDevKitChip
 TB                  ?= E300ArtyDevKitTB
 
 FIRRTL_FILE         ?= $(build_dir)/$(CFG_PRJ).$(CONFIG).fir
@@ -65,16 +65,23 @@ SBT ?= $(JAVA) $(JAVA_ARGS) -jar $(ROCKETCHIP_DIR)/sbt-launch.jar
 #########################################################################################
 # Scripts
 #########################################################################################
-VLSI_MEM_GEN        ?= $(ROCKETCHIP_DIR)/scripts/vlsi_mem_gen
-export VLSI_ROM_GEN ?= $(ROCKETCHIP_DIR)/scripts/vlsi_rom_gen
-SOFTWARE_IMG_GEN    ?= $(base_dir)/scripts/bin2hex.py
+VLSI_MEM_GEN     ?= $(ROCKETCHIP_DIR)/scripts/vlsi_mem_gen
+VLSI_ROM_GEN     ?= $(ROCKETCHIP_DIR)/scripts/vlsi_rom_gen
+SOFTWARE_IMG_GEN ?= $(base_dir)/scripts/bin2hex.py
+export VLSI_ROM_GEN
 
 #########################################################################################
-# Toolchain
+# RISC-V Toolchain
 #########################################################################################
-export CC      := $(RISCV)/bin/riscv64-unknown-elf-gcc
-export OBJCOPY := $(RISCV)/bin/riscv64-unknown-elf-objcopy
-export OBJDUMP := $(RISCV)/bin/riscv64-unknown-elf-objdump
+CROSS_COMPILE        := riscv64-unknown-elf
+export RISCV_GCC     := $(abspath $(RISCV)/bin/$(CROSS_COMPILE)-gcc)
+export RISCV_GXX     := $(abspath $(RISCV)/bin/$(CROSS_COMPILE)-g++)
+export RISCV_OBJDUMP := $(abspath $(RISCV)/bin/$(CROSS_COMPILE)-objdump)
+export RISCV_OBJCOPY := $(abspath $(RISCV)/bin/$(CROSS_COMPILE)-objcopy)
+export RISCV_GDB     := $(abspath $(RISCV)/bin/$(CROSS_COMPILE)-gdb)
+export RISCV_AR      := $(abspath $(RISCV)/bin/$(CROSS_COMPILE)-ar)
+export RISCV_SIZE    := $(abspath $(RISCV)/bin/$(CROSS_COMPILE)-size)
+export PATH          := $(abspath $(RISCV)/bin):$(PATH)
 
 #########################################################################################
 # Misc.
